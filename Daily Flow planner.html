@@ -120,8 +120,15 @@
             <!-- COLUMN 1: MONTHLY TIMELINE OVERVIEW (Left) -->
             <aside class="lg:col-span-3 space-y-4">
                 <div class="px-2 flex justify-between items-center">
-                    <h2 class="text-xs font-bold text-slate-400 tracking-widest uppercase">System Calendar</h2>
-                    <span id="task-count-badge" class="text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-full font-bold tracking-wide">0 Days Active</span>
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-xs font-bold text-slate-400 tracking-widest uppercase">System Calendar</h2>
+                    </div>
+                    <!-- Monthly Switcher Controls -->
+                    <div class="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-xl p-1">
+                        <button id="prev-month-btn" class="w-6 h-6 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 transition-colors cursor-pointer text-xs font-bold" title="Previous Month">◀</button>
+                        <span id="calendar-month-indicator" class="text-[10px] font-extrabold text-cyan-400 px-1 tracking-wider uppercase">JUL 2026</span>
+                        <button id="next-month-btn" class="w-6 h-6 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 transition-colors cursor-pointer text-xs font-bold" title="Next Month">▶</button>
+                    </div>
                 </div>
                 
                 <div id="monthly-day-list" class="space-y-2 max-h-[640px] overflow-y-auto pr-1 no-scrollbar">
@@ -151,7 +158,7 @@
                     </div>
                 </div>
 
-                <!-- DYNAMIC TASK ROW WRAPPERS (With Scrollable Height Container that grows and scrolls) -->
+                <!-- DYNAMIC TASK ROW WRAPPERS -->
                 <div id="task-container" class="space-y-3 min-h-[150px] max-h-[465px] overflow-y-auto pr-1 no-scrollbar">
                     <!-- Injected rows -->
                 </div>
@@ -182,7 +189,7 @@
                     <div class="mb-4 flex justify-between items-center">
                         <div>
                             <h2 class="text-xs font-bold text-cyan-400 tracking-widest uppercase">Rest & Recovery Log</h2>
-                            <h3 class="text-sm font-bold text-white mt-0.5">WEEKLY SLEEP DURATION</h3>
+                            <h3 class="text-sm font-bold text-white mt-0.5">RECENT SLEEP DURATION</h3>
                         </div>
                         <span class="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-md font-mono">HOURS</span>
                     </div>
@@ -219,7 +226,9 @@
             selectedDateStr: "", 
             tasksByDay: {},
             sleepByDay: {},
-            activeFilter: "all"
+            activeFilter: "all",
+            viewYear: new Date().getFullYear(),
+            viewMonth: new Date().getMonth() // 0 - 11
         };
 
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -231,7 +240,8 @@
             const currentMonth = now.getMonth();
             const currentDay = now.getDate();
 
-            document.getElementById('current-month-year-label').innerText = `${monthNames[currentMonth]} ${currentYear}`;
+            state.viewYear = currentYear;
+            state.viewMonth = currentMonth;
             state.selectedDateStr = formatDateKey(currentYear, currentMonth, currentDay);
 
             // Load data matrix configuration
@@ -251,7 +261,7 @@
             }
 
             setupClock();
-            buildMonthlyCalendarList(currentYear, currentMonth, currentDay);
+            buildMonthlyCalendarList(state.viewYear, state.viewMonth);
             selectDay(state.selectedDateStr);
             setupEventListeners();
         }
@@ -282,9 +292,12 @@
             setInterval(updateClock, 1000);
         }
 
-        function buildMonthlyCalendarList(year, month, currentDay) {
+        function buildMonthlyCalendarList(year, month) {
             const listContainer = document.getElementById('monthly-day-list');
             listContainer.innerHTML = '';
+
+            // Update calendar month indicator label & header
+            document.getElementById('calendar-month-indicator').innerText = `${monthNames[month].slice(0, 3).toUpperCase()} ${year}`;
 
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             let loadedDayCount = 0;
@@ -330,7 +343,11 @@
                 listContainer.appendChild(dayCard);
             }
 
-            document.getElementById('task-count-badge').innerText = `${loadedDayCount} Days Tracked`;
+            // Highlight selected day if it belongs to this viewed month
+            const targetEl = document.getElementById(`day-card-${state.selectedDateStr}`);
+            if (targetEl) {
+                targetEl.classList.add('border-purple-500/60', 'bg-white/10', 'shadow-[0_0_20px_rgba(168,85,247,0.15)]');
+            }
         }
 
         function selectDay(dateKey) {
@@ -402,6 +419,25 @@
         }
 
         function setupEventListeners() {
+            // Monthly Switcher Button Listeners
+            document.getElementById('prev-month-btn').addEventListener('click', () => {
+                state.viewMonth--;
+                if (state.viewMonth < 0) {
+                    state.viewMonth = 11;
+                    state.viewYear--;
+                }
+                buildMonthlyCalendarList(state.viewYear, state.viewMonth);
+            });
+
+            document.getElementById('next-month-btn').addEventListener('click', () => {
+                state.viewMonth++;
+                if (state.viewMonth > 11) {
+                    state.viewMonth = 0;
+                    state.viewYear++;
+                }
+                buildMonthlyCalendarList(state.viewYear, state.viewMonth);
+            });
+
             document.getElementById('add-task-btn').addEventListener('click', () => {
                 if (!state.tasksByDay[state.selectedDateStr]) {
                     state.tasksByDay[state.selectedDateStr] = [];
@@ -490,8 +526,7 @@
         }
 
         function refreshCalendarUI() {
-            const now = new Date();
-            buildMonthlyCalendarList(now.getFullYear(), now.getMonth(), now.getDate());
+            buildMonthlyCalendarList(state.viewYear, state.viewMonth);
             const targetEl = document.getElementById(`day-card-${state.selectedDateStr}`);
             if (targetEl) targetEl.classList.add('border-purple-500/60', 'bg-white/10');
         }
@@ -612,7 +647,7 @@
                         }
                         
                         const now = new Date();
-                        buildMonthlyCalendarList(now.getFullYear(), now.getMonth(), now.getDate());
+                        buildMonthlyCalendarList(state.viewYear, state.viewMonth);
                         
                         const keys = Object.keys(state.tasksByDay);
                         selectDay(keys.length > 0 ? keys[0] : formatDateKey(now.getFullYear(), now.getMonth(), now.getDate()));
